@@ -25,4 +25,5 @@ jobs:
       - name: Build
         run: |
           bin/gn gen out/Static --args='is_official_build=true is_debug=false'
+          tools/install_dependencies.sh
           ninja -C out/Static
