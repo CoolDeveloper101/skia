@@ -1,0 +1,22 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+#     - uses: actions/checkout@v3
+    
+    - name: Install depot_tools
+      run: |
+        pwd
+        iwr -outf depot_tools.zip https://storage.googleapis.com/chrome-infra/depot_tools.zip
+        tar -xf depot_tools.zip
+        
