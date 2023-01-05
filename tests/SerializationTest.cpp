@@ -5,7 +5,6 @@
  * found in the LICENSE file.
  */
 
-#include "include/base/SkAlign.h"
 #include "include/core/SkAnnotation.h"
 #include "include/core/SkBitmap.h"
 #include "include/core/SkBlendMode.h"
@@ -46,6 +45,7 @@
 #include "include/effects/SkImageFilters.h"
 #include "include/private/SkMalloc.h"
 #include "include/private/SkTemplates.h"
+#include "include/private/base/SkAlign.h"
 #include "src/core/SkAnnotationKeys.h"
 #include "src/core/SkAutoMalloc.h"
 #include "src/core/SkColorFilterBase.h"
@@ -63,8 +63,6 @@
 #include <cstring>
 #include <memory>
 #include <utility>
-
-using namespace skia::internal;
 
 static const uint32_t kArraySize = 64;
 static const int kBitmapSize = 256;

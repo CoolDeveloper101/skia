@@ -9,6 +9,7 @@
 #include "include/private/SkTo.h"
 #include "src/core/SkOpts.h"
 #include "src/core/SkRasterPipeline.h"
+#include "src/core/SkUtils.h"
 #include "src/gpu/Swizzle.h"
 #include "tests/Test.h"
 
@@ -1246,30 +1247,42 @@ DEF_TEST(SkRasterPipeline_CompareIntsWithHardcodedSlots, r) {
     }
 }
 
-DEF_TEST(SkRasterPipeline_UnaryBitwiseOps, r) {
+static int to_float(int a) { return sk_bit_cast<int>((float)a); }
+
+DEF_TEST(SkRasterPipeline_UnaryIntOps, r) {
     // Allocate space for 5 slots.
     alignas(64) int slots[5 * SkRasterPipeline_kMaxStride_highp];
     const int N = SkOpts::raster_pipeline_highp_stride;
 
-    struct BitwiseOp {
+    struct UnaryOp {
         SkRasterPipeline::Stage stage;
         int numSlotsAffected;
         std::function<int(int)> verify;
     };
 
-    static const BitwiseOp kBitwiseOps[] = {
-        {SkRasterPipeline::Stage::bitwise_not,   1, [](int a) { return ~a; }},
-        {SkRasterPipeline::Stage::bitwise_not_2, 2, [](int a) { return ~a; }},
-        {SkRasterPipeline::Stage::bitwise_not_3, 3, [](int a) { return ~a; }},
-        {SkRasterPipeline::Stage::bitwise_not_4, 4, [](int a) { return ~a; }},
+    static const UnaryOp kUnaryOps[] = {
+        {SkRasterPipeline::Stage::bitwise_not_int,    1, [](int a) { return ~a; }},
+        {SkRasterPipeline::Stage::bitwise_not_2_ints, 2, [](int a) { return ~a; }},
+        {SkRasterPipeline::Stage::bitwise_not_3_ints, 3, [](int a) { return ~a; }},
+        {SkRasterPipeline::Stage::bitwise_not_4_ints, 4, [](int a) { return ~a; }},
+
+        {SkRasterPipeline::Stage::cast_to_float_from_int,    1, to_float},
+        {SkRasterPipeline::Stage::cast_to_float_from_2_ints, 2, to_float},
+        {SkRasterPipeline::Stage::cast_to_float_from_3_ints, 3, to_float},
+        {SkRasterPipeline::Stage::cast_to_float_from_4_ints, 4, to_float},
+
+        {SkRasterPipeline::Stage::abs_int,    1, [](int a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_2_ints, 2, [](int a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_3_ints, 3, [](int a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_4_ints, 4, [](int a) { return a < 0 ? -a : a; }},
     };
 
-    for (const BitwiseOp& op : kBitwiseOps) {
-        // Initialize the slot values to -3,-2,-1...
-        std::iota(&slots[0], &slots[5 * N], -3);
+    for (const UnaryOp& op : kUnaryOps) {
+        // Initialize the slot values to -10,-9,-8...
+        std::iota(&slots[0], &slots[5 * N], -10);
         int inputValue = slots[0];
 
-        // Run the bitwise op over our data.
+        // Run the unary op over our data.
         SkArenaAlloc alloc(/*firstHeapAllocation=*/256);
         SkRasterPipeline p(&alloc);
         p.append(op.stage, &slots[0]);
@@ -1282,6 +1295,72 @@ DEF_TEST(SkRasterPipeline_UnaryBitwiseOps, r) {
                 if (checkSlot < op.numSlotsAffected) {
                     int expected = op.verify(inputValue);
                     REPORTER_ASSERT(r, *destPtr == expected);
+                } else {
+                    REPORTER_ASSERT(r, *destPtr == inputValue);
+                }
+
+                ++destPtr;
+                ++inputValue;
+            }
+        }
+    }
+}
+
+static float to_int(float a)  { return sk_bit_cast<float>((int)a); }
+static float to_uint(float a) { return sk_bit_cast<float>((unsigned int)a); }
+
+DEF_TEST(SkRasterPipeline_UnaryFloatOps, r) {
+    // Allocate space for 5 slots.
+    alignas(64) float slots[5 * SkRasterPipeline_kMaxStride_highp];
+    const int N = SkOpts::raster_pipeline_highp_stride;
+
+    struct UnaryOp {
+        SkRasterPipeline::Stage stage;
+        int numSlotsAffected;
+        std::function<float(float)> verify;
+    };
+
+    static const UnaryOp kUnaryOps[] = {
+        {SkRasterPipeline::Stage::cast_to_int_from_float,    1, to_int},
+        {SkRasterPipeline::Stage::cast_to_int_from_2_floats, 2, to_int},
+        {SkRasterPipeline::Stage::cast_to_int_from_3_floats, 3, to_int},
+        {SkRasterPipeline::Stage::cast_to_int_from_4_floats, 4, to_int},
+
+        {SkRasterPipeline::Stage::cast_to_uint_from_float,    1, to_uint},
+        {SkRasterPipeline::Stage::cast_to_uint_from_2_floats, 2, to_uint},
+        {SkRasterPipeline::Stage::cast_to_uint_from_3_floats, 3, to_uint},
+        {SkRasterPipeline::Stage::cast_to_uint_from_4_floats, 4, to_uint},
+
+        {SkRasterPipeline::Stage::abs_float,    1, [](float a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_2_floats, 2, [](float a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_3_floats, 3, [](float a) { return a < 0 ? -a : a; }},
+        {SkRasterPipeline::Stage::abs_4_floats, 4, [](float a) { return a < 0 ? -a : a; }},
+    };
+
+    for (const UnaryOp& op : kUnaryOps) {
+        // The result of some ops are undefined with negative inputs, so only test positive values.
+        bool positiveOnly = (op.stage == SkRasterPipeline::Stage::cast_to_uint_from_float ||
+                             op.stage == SkRasterPipeline::Stage::cast_to_uint_from_2_floats ||
+                             op.stage == SkRasterPipeline::Stage::cast_to_uint_from_3_floats ||
+                             op.stage == SkRasterPipeline::Stage::cast_to_uint_from_4_floats);
+
+        float iotaStart = positiveOnly ? 1.0f : -10.0f;
+        std::iota(&slots[0], &slots[5 * N], iotaStart);
+        int inputValue = slots[0];
+
+        // Run the unary op over our data.
+        SkArenaAlloc alloc(/*firstHeapAllocation=*/256);
+        SkRasterPipeline p(&alloc);
+        p.append(op.stage, &slots[0]);
+        p.run(0, 0, 1, 1);
+
+        // Verify that the destination slots have been updated.
+        float* destPtr = &slots[0];
+        for (int checkSlot = 0; checkSlot < 5; ++checkSlot) {
+            for (int checkLane = 0; checkLane < N; ++checkLane) {
+                if (checkSlot < op.numSlotsAffected) {
+                    float expected = op.verify(inputValue);
+                    REPORTER_ASSERT(r, 0 == memcmp(destPtr, &expected, sizeof(float)));
                 } else {
                     REPORTER_ASSERT(r, *destPtr == inputValue);
                 }
@@ -2028,9 +2107,9 @@ public:
     };
 
     static Behavior GrowthBehavior() {
-        // Without the musttail attribute, we have no way of knowing what's going to happen.
-        // In release builds, it's likely that the compiler will apply tail call optimization.
-        // Even in some debug builds (on Windows), we don't see stack growth.
+        // Only some stages use the musttail attribute, so we have no way of knowing what's going to
+        // happen. In release builds, it's likely that the compiler will apply tail-call
+        // optimization. Even in some debug builds (on Windows), we don't see stack growth.
         return Behavior::kUnknown;
     }
 
